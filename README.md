@@ -13,19 +13,21 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-## Demo rápida
+## Uso
 
-`assets/maze.png` sirve como caso mínimo para validar el pipeline.
+Ejecute el menú interactivo:
 
 ```bash
-python -m src.main --image assets/maze.png --tile-size 20 --tolerance 55 --ascii
+python -m src.main
 ```
 
-El comando imprime:
+Opciones disponibles:
 
-- Dimensiones del grid discreto.
-- Coordenadas de inicio (rojo) y metas (verde).
-- Render ASCII opcional para inspección rápida.
+1. Resolver el ejemplo `assets/maze.png`.
+2. Ingresar la ruta de una imagen personalizada (PNG/BMP).
+3. Salir.
+
+El programa carga la imagen, la discretiza (tiles de 20 px con tolerancia 45), construye el grafo y ejecuta búsqueda A*. Finalmente muestra estadísticas básicas y un render ASCII del camino sobre la grilla discreta.
 
 ## Notas
 

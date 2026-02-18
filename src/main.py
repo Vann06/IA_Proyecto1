@@ -1,72 +1,99 @@
-"""Small demo CLI to load a maze image and print its discrete grid."""
+"""Interfaz de línea de comandos simple para resolver laberintos discretizados."""
 
 from __future__ import annotations
 
-import argparse
 from pathlib import Path
-from typing import Dict
+from typing import List, Tuple
 
-from io.discretize import CellType, discretize_image
-from io.image_loader import load_rgb_image
+from core.problem import build_problem_from_grid
+from core.search import a_star_search
+from maze_io.discretize import CellType, GridRepresentation, discretize_image
+from maze_io.image_loader import load_rgb_image
 
-
-def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--image",
-        type=Path,
-        required=True,
-        help="Ruta al archivo PNG/BMP del laberinto",
-    )
-    parser.add_argument(
-        "--tile-size",
-        type=int,
-        default=20,
-        help="Tamaño (en px) de cada tile para discretizar",
-    )
-    parser.add_argument(
-        "--tolerance",
-        type=float,
-        default=45.0,
-        help="Tolerancia en la distancia de color para clasificar celdas",
-    )
-    parser.add_argument(
-        "--ascii",
-        action="store_true",
-        help="Imprime una versión ASCII del grid resultante",
-    )
-    return parser.parse_args()
-
-
-def _ascii_render(grid, mapping: Dict[int, str]) -> str:
-    lines = []
-    for row in grid:
-        cells = [mapping.get(int(cell), "?") for cell in row]
-        lines.append("".join(cells))
-    return "\n".join(lines)
+ASSETS_DIR = Path(__file__).resolve().parents[1] / "assets"
+DEFAULT_IMAGE = ASSETS_DIR / "maze.png"
+DEFAULT_TILE_SIZE = 20
+DEFAULT_TOLERANCE = 45.0
 
 
 def main() -> None:
-    args = _parse_args()
-    image = load_rgb_image(args.image)
-    grid_repr = discretize_image(image, tile_size=args.tile_size, tolerance=args.tolerance)
+    while True:
+        _print_menu()
+        choice = input("Seleccione una opción: ").strip()
+        if choice == "1":
+            _run_solver(DEFAULT_IMAGE)
+        elif choice == "2":
+            path = input("Ruta de la imagen (PNG/BMP): ").strip()
+            if path:
+                _run_solver(Path(path))
+        elif choice == "3":
+            print("Hasta luego!")
+            break
+        else:
+            print("Opción no válida. Intente de nuevo.\n")
 
+
+def _print_menu() -> None:
+    print("\n=== Solucionador de Laberintos ===")
+    print("1) Resolver assets/maze.png (demo)")
+    print("2) Resolver imagen personalizada")
+    print("3) Salir")
+
+
+def _run_solver(image_path: Path) -> None:
+    try:
+        print(f"\nCargando imagen: {image_path}")
+        image = load_rgb_image(image_path)
+        grid_repr = discretize_image(
+            image,
+            tile_size=DEFAULT_TILE_SIZE,
+            tolerance=DEFAULT_TOLERANCE,
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(f"Error al cargar/discretizar la imagen: {exc}\n")
+        return
+
+    problem = build_problem_from_grid(grid_repr)
+    result = a_star_search(problem)
+
+    print("\n--- Resultados A* ---")
+    if not result.success:
+        print("No se encontró un camino al objetivo")
+        return
+
+    path_length = len(result.path)
+    print(f"Celdas exploradas: {result.explored}")
+    print(f"Costo total (movimientos): {result.cost}")
+    print(f"Longitud del camino: {path_length}")
+    print(f"Camino inicia en: {result.path[0]} y termina en: {result.path[-1]}")
+    print(f"Chequeo rápido (cost == pasos): {result.cost == path_length - 1}")
+
+    print("\nVisualización del camino (grid discreto):\n")
+    print(_render_path(grid_repr, result.path))
+
+
+def _render_path(grid: GridRepresentation, path: List[Tuple[int, int]]) -> str:
     mapping = {
         CellType.WALL: "#",
         CellType.FREE: ".",
         CellType.START: "S",
         CellType.GOAL: "G",
     }
+    char_rows: List[List[str]] = []
+    for row in grid.grid:
+        char_rows.append([mapping.get(int(cell), "?") for cell in row])
 
-    print(f"Imagen: {args.image}")
-    print(f"Grid: {grid_repr.grid.shape[0]} filas x {grid_repr.grid.shape[1]} columnas")
-    print(f"Inicio: {grid_repr.start}")
-    print(f"Goals: {grid_repr.goals}")
+    goal_set = set(grid.goals)
+    for row, col in path:
+        if (row, col) == grid.start:
+            char_rows[row][col] = "S"
+        elif (row, col) in goal_set:
+            char_rows[row][col] = "G"
+        else:
+            char_rows[row][col] = "*"
 
-    if args.ascii:
-        print("\nASCII grid:\n")
-        print(_ascii_render(grid_repr.grid, mapping))
+    return "\n".join("".join(line) for line in char_rows)
 
 
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":
     main()
