@@ -41,6 +41,7 @@ def discretize_image(
     cols = ceil(width / tile_size)
     grid = np.full((rows, cols), CellType.WALL, dtype=np.uint8)
     start = None
+    start_candidates: List[Tuple[int, int]] = []
     goals: List[Tuple[int, int]] = []
 
     # Los colores de referencia para clasificar cada celda
@@ -65,14 +66,22 @@ def discretize_image(
             grid[row, col] = cell_type
 
             if cell_type == CellType.START:
-                if start is not None:
-                    raise ValueError("Multiple starting positions detected in the image")
-                start = (row, col)
+                start_candidates.append((row, col))
             elif cell_type == CellType.GOAL:
                 goals.append((row, col))
 
-    if start is None:
+    # Elegir inicio a partir de los candidatos (puede haber varios tiles rojos)
+    if start_candidates:
+        rows_idx = np.array([r for r, _ in start_candidates], dtype=np.float32)
+        cols_idx = np.array([c for _, c in start_candidates], dtype=np.float32)
+        mean_r = float(rows_idx.mean())
+        mean_c = float(cols_idx.mean())
+        dists = [abs(r - mean_r) + abs(c - mean_c) for r, c in start_candidates]
+        best_idx = int(np.argmin(dists))
+        start = start_candidates[best_idx]
+    else:
         raise ValueError("No starting position (red tile) found in the image")
+
     if not goals:
         raise ValueError("No goal positions (green tiles) found in the image")
 
@@ -85,15 +94,28 @@ def _classify_color(
     reference_colors: dict,
     tolerance: float,
 ) -> int:
-# retorna la etiqueta de la celda (libre, pared, inicio, objetivo) basada 
-# en la distancia al color promedio del tile
-    distances = {
-        label: np.linalg.norm(color - reference)
-        for label, reference in reference_colors.items()
-    }
+    """Clasifica un color promedio en WALL/FREE/START/GOAL.
 
-    label = min(distances, key=distances.get)
-    if distances[label] <= tolerance:
-        return label
+    Igual que en maze_io.discretize, se detectan rojos y verdes dominantes
+    permitiendo variaciones en los valores RGB.
+    """
+
+    color = color.astype(np.float32)
+    r, g, b = color
+    brightness = (r + g + b) / 3.0
+
+    dark_threshold = 60.0
+    if brightness < dark_threshold:
+        return CellType.WALL
+
+    delta = tolerance
+    max_gb = max(g, b)
+    max_rb = max(r, b)
+
+    if (r - max_gb) > delta:
+        return CellType.START
+
+    if (g - max_rb) > delta:
+        return CellType.GOAL
 
     return CellType.FREE

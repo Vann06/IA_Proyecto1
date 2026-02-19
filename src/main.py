@@ -9,8 +9,10 @@ from core.problem import build_problem_from_grid
 from core.search import a_star_search
 from maze_io.discretize import CellType, GridRepresentation, discretize_image
 from maze_io.image_loader import load_rgb_image
+from viz.draw import save_discretization_overlay, save_path_on_grid
 
 ASSETS_DIR = Path(__file__).resolve().parents[1] / "assets"
+OUTPUTS_DIR = Path(__file__).resolve().parents[1] / "outputs"
 DEFAULT_IMAGE = ASSETS_DIR / "maze.png"
 DEFAULT_TILE_SIZE = 20
 DEFAULT_TOLERANCE = 45.0
@@ -53,6 +55,14 @@ def _run_solver(image_path: Path) -> None:
         print(f"Error al cargar/discretizar la imagen: {exc}\n")
         return
 
+    # Asegurar carpeta de salidas
+    OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Guardar visualización de la discretización sobre la imagen original
+    base_name = image_path.stem
+    discretized_path = OUTPUTS_DIR / f"{base_name}_discretizacion.png"
+    save_discretization_overlay(image, grid_repr, discretized_path, show=False)
+
     problem = build_problem_from_grid(grid_repr)
     result = a_star_search(problem)
 
@@ -68,8 +78,12 @@ def _run_solver(image_path: Path) -> None:
     print(f"Camino inicia en: {result.path[0]} y termina en: {result.path[-1]}")
     print(f"Chequeo rápido (cost == pasos): {result.cost == path_length - 1}")
 
-    print("\nVisualización del camino (grid discreto):\n")
-    print(_render_path(grid_repr, result.path))
+    # Visualización gráfica del camino sobre la matriz discreta
+    path_image_path = OUTPUTS_DIR / f"{base_name}_discreto.png"
+    print("\nGenerando visualización gráfica de la discretización (se abrirá una ventana)...")
+    # Por ahora solo mostramos la discretización (sin pintar el camino en azul)
+    save_path_on_grid(grid_repr, result.path, path_image_path, show=True, draw_path=False)
+    print(f"Imágenes guardadas en: {discretized_path} y {path_image_path}")
 
 
 def _render_path(grid: GridRepresentation, path: List[Tuple[int, int]]) -> str:
