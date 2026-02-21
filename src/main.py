@@ -1,113 +1,138 @@
-"""Interfaz de línea de comandos simple para resolver laberintos discretizados."""
+"""Intelligent console center. Serves with care and informs in a human way."""
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Tuple
 
-from core.problem import build_problem_from_grid
-from core.search import a_star_search
-from maze_io.discretize import CellType, GridRepresentation, discretize_image
+# Aqui importamos con los nombres descriptivos en ingles!
+from core.problem import build_problem_from_maze
+from core.search import (
+    use_artificial_intelligence_type_a_star, 
+    use_relaxed_and_egalitarian_search_bfs, 
+    use_obsessive_but_fast_search_dfs
+)
+from maze_io.discretize import discretize_image
+from maze_io.discretize_small import discretize_image as discretize_image_small
 from maze_io.image_loader import load_rgb_image
-from viz.draw import save_discretization_overlay, save_path_on_grid
+from viz.draw import save_discretization_overlay, draw_marker_over_original_image, save_path_on_grid
 
-ASSETS_DIR = Path(__file__).resolve().parents[1] / "assets"
-OUTPUTS_DIR = Path(__file__).resolve().parents[1] / "outputs"
-DEFAULT_IMAGE = ASSETS_DIR / "maze.png"
-DEFAULT_TILE_SIZE = 20
-DEFAULT_TOLERANCE = 45.0
+THE_ZONE_OF_MY_FILES = Path(__file__).resolve().parents[1] / "assets"
+FOLDER_TO_SAVE_THE_MAGIC = Path(__file__).resolve().parents[1] / "outputs"
+DEFAULT_SYSTEM_PHOTO = THE_ZONE_OF_MY_FILES / "maze.png"
 
+LITTLE_CUBE_SIZE = 20
+COLOR_CONFIDENCE_DEGREE = 45.0
 
-def main() -> None:
+def start_software() -> None:
     while True:
-        _print_menu()
-        choice = input("Seleccione una opción: ").strip()
-        if choice == "1":
-            _run_solver(DEFAULT_IMAGE)
-        elif choice == "2":
-            path = input("Ruta de la imagen (PNG/BMP): ").strip()
-            if path:
-                _run_solver(Path(path))
-        elif choice == "3":
-            print("Hasta luego!")
+        _tell_me_available_options_nicely()
+        what_the_user_wants_to_do = input("Type your selection here: ").strip()
+        
+        if what_the_user_wants_to_do == "1":
+            _process_entire_request_step_by_step(DEFAULT_SYSTEM_PHOTO)
+            
+        elif what_the_user_wants_to_do == "2":
+            photo_address = input("Carefully type the path to your image: ").strip()
+            if photo_address:
+                _process_entire_request_step_by_step(Path(photo_address))
+                
+        elif what_the_user_wants_to_do == "3":
+            photo_address = input("Carefully type the path to your very complex image: ").strip()
+            if photo_address:
+                _process_entire_request_step_by_step(Path(photo_address), image_is_complicated_so_caution=True)
+                
+        elif what_the_user_wants_to_do == "4":
+            print("See you in the next search!")
             break
         else:
-            print("Opción no válida. Intente de nuevo.\n")
+            print("Oops, I'm afraid that's not a menu option. Let's try again.\n")
 
+def _tell_me_available_options_nicely() -> None:
+    print("\n========= Robot Maze-Solver =========")
+    print("1) I want to use the factory default image.")
+    print("2) I have my own image with simple design (20x20 squares).")
+    print("3) I have my own image with super demanding design (tiny pixels).")
+    print("4) I got bored, I want to close the terminal.")
 
-def _print_menu() -> None:
-    print("\n=== Solucionador de Laberintos ===")
-    print("1) Resolver assets/maze.png (demo)")
-    print("2) Resolver imagen personalizada")
-    print("3) Salir")
-
-
-def _run_solver(image_path: Path) -> None:
+def _process_entire_request_step_by_step(person_file_url: Path, image_is_complicated_so_caution: bool = False) -> None:
     try:
-        print(f"\nCargando imagen: {image_path}")
-        image = load_rgb_image(image_path)
-        grid_repr = discretize_image(
-            image,
-            tile_size=DEFAULT_TILE_SIZE,
-            tolerance=DEFAULT_TOLERANCE,
-        )
-    except Exception as exc:  # noqa: BLE001
-        print(f"Error al cargar/discretizar la imagen: {exc}\n")
-        return
-
-    # Asegurar carpeta de salidas
-    OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
-
-    # Guardar visualización de la discretización sobre la imagen original
-    base_name = image_path.stem
-    discretized_path = OUTPUTS_DIR / f"{base_name}_discretizacion.png"
-    save_discretization_overlay(image, grid_repr, discretized_path, show=False)
-
-    problem = build_problem_from_grid(grid_repr)
-    result = a_star_search(problem)
-
-    print("\n--- Resultados A* ---")
-    if not result.success:
-        print("No se encontró un camino al objetivo")
-        return
-
-    path_length = len(result.path)
-    print(f"Celdas exploradas: {result.explored}")
-    print(f"Costo total (movimientos): {result.cost}")
-    print(f"Longitud del camino: {path_length}")
-    print(f"Camino inicia en: {result.path[0]} y termina en: {result.path[-1]}")
-    print(f"Chequeo rápido (cost == pasos): {result.cost == path_length - 1}")
-
-    # Visualización gráfica del camino sobre la matriz discreta
-    path_image_path = OUTPUTS_DIR / f"{base_name}_discreto.png"
-    print("\nGenerando visualización gráfica de la discretización (se abrirá una ventana)...")
-    # Por ahora solo mostramos la discretización (sin pintar el camino en azul)
-    save_path_on_grid(grid_repr, result.path, path_image_path, show=True, draw_path=False)
-    print(f"Imágenes guardadas en: {discretized_path} y {path_image_path}")
-
-
-def _render_path(grid: GridRepresentation, path: List[Tuple[int, int]]) -> str:
-    mapping = {
-        CellType.WALL: "#",
-        CellType.FREE: ".",
-        CellType.START: "S",
-        CellType.GOAL: "G",
-    }
-    char_rows: List[List[str]] = []
-    for row in grid.grid:
-        char_rows.append([mapping.get(int(cell), "?") for cell in row])
-
-    goal_set = set(grid.goals)
-    for row, col in path:
-        if (row, col) == grid.start:
-            char_rows[row][col] = "S"
-        elif (row, col) in goal_set:
-            char_rows[row][col] = "G"
+        print(f"\nNoted! Preparing my lenses to read the file: {person_file_url}")
+        photo_with_its_original_colors = load_rgb_image(person_file_url)
+        
+        if image_is_complicated_so_caution:
+            brain_map_of_maze = discretize_image_small(
+                photo_with_its_original_colors,
+                tile_size=1,
+                tolerance=COLOR_CONFIDENCE_DEGREE,
+            )
         else:
-            char_rows[row][col] = "*"
+            brain_map_of_maze = discretize_image(
+                photo_with_its_original_colors,
+                tile_size=LITTLE_CUBE_SIZE,
+                tolerance=COLOR_CONFIDENCE_DEGREE,
+            )
+    except Exception as what_happened:
+        print(f"Bad news engineer, something happened with the image file: {what_happened}\n")
+        return
 
-    return "\n".join("".join(line) for line in char_rows)
+    FOLDER_TO_SAVE_THE_MAGIC.mkdir(parents=True, exist_ok=True)
+    how_the_photo_is_called_without_extension = person_file_url.stem
+    path_for_discretized_photo = FOLDER_TO_SAVE_THE_MAGIC / f"{how_the_photo_is_called_without_extension}_discretizacion.png"
+    save_discretization_overlay(photo_with_its_original_colors, brain_map_of_maze, path_for_discretized_photo, show=False)
 
+    print("\nDiscretization ready. Select the Algorithm:")
+    print("1) Breadth-First Search (BFS)")
+    print("2) Depth-First Search (DFS)")
+    print("3) A* Search (Heuristic A-Star)")
+    algorithm_choice = input("Algorithm [1-3] > ").strip()
+
+    mathematical_problem = build_problem_from_maze(brain_map_of_maze)
+    print("\nSolving maze...")
+
+    if algorithm_choice == "2":
+        triumph_report = use_obsessive_but_fast_search_dfs(mathematical_problem)
+        name_of_the_algorithm = "DFS"
+    elif algorithm_choice == "3":
+        triumph_report = use_artificial_intelligence_type_a_star(mathematical_problem)
+        name_of_the_algorithm = "A-Star"
+    else:
+        triumph_report = use_relaxed_and_egalitarian_search_bfs(mathematical_problem)
+        name_of_the_algorithm = "BFS"
+
+    print(f"\n--- Results {name_of_the_algorithm} ---")
+    if not triumph_report.success_reaching_goal:
+        print("A path to the goal was not found")
+        return
+
+    total_path_steps = len(triumph_report.history_of_winning_steps)
+    print(f"Explored cells before winning: {triumph_report.amount_of_checked_boxes_before_winning}")
+    print(f"Wasted energy (moves): {triumph_report.wasted_energy_cost}")
+    print(f"Path length: {total_path_steps}")
+
+    path_image_file = FOLDER_TO_SAVE_THE_MAGIC / f"{how_the_photo_is_called_without_extension}_line_{name_of_the_algorithm}.png"
+    
+    if name_of_the_algorithm == "A-Star":
+        print("\nGenerating the requested graphic display for Task 1.3 (Discrete Matrix)...")
+        path_image_file_discrete = FOLDER_TO_SAVE_THE_MAGIC / f"{how_the_photo_is_called_without_extension}_discrete_line_{name_of_the_algorithm}.png"
+        save_path_on_grid(
+            grid=brain_map_of_maze,
+            path=triumph_report.history_of_winning_steps,
+            output_path=path_image_file_discrete,
+            show=True,
+            draw_path=True
+        )
+        print(f"Discrete graphic image expertly exported to: {path_image_file_discrete}")
+    else:
+        print("\nGenerating the requested graphic display for Task 1.2...")
+        
+        draw_marker_over_original_image(
+            original_photographic_frame=photo_with_its_original_colors, 
+            analyzed_maze_logical_information=brain_map_of_maze, 
+            list_of_winning_steps=triumph_report.history_of_winning_steps, 
+            name_of_the_future_exported_file=path_image_file, 
+            force_window_to_appear=True
+        )
+        print(f"Graphic image expertly exported to: {path_image_file}")
 
 if __name__ == "__main__":
-    main()
+    start_software()
