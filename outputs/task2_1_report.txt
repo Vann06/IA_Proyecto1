@@ -1,0 +1,19 @@
+Task 2.1 - Entrenamiento de Red Neuronal (MLP numpy)
+====================================================
+Arquitectura: 3 -> (16, 12) -> 11
+Epocas: 80
+Accuracy entrenamiento: 0.8726
+Accuracy prueba (20%): 0.8525
+
+Mapeo de etiquetas a costos del robot:
+- Black -> costo 999
+- Blue -> costo 10
+- Brown -> costo 4
+- Green -> costo 3
+- Grey -> costo 1
+- Orange -> costo 6
+- Pink -> costo 7
+- Purple -> costo 6
+- Red -> costo 8
+- White -> costo 1
+- Yellow -> costo 5

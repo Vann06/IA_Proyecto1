@@ -33,3 +33,18 @@ El programa carga la imagen, la discretiza (tiles de 20 px con tolerancia 45), c
 
 - El folder `io/` funciona como paquete Python (gracias a `io/__init__.py`), así que se puede importar con `from io.discretize import ...` sin choques con la librería estándar.
 - Ajuste `--tile-size` y `--tolerance` según la resolución del mapa y el ruido de color.
+
+## Task 2.1 - Entrenamiento Red Neuronal (MLP con numpy)
+
+Para entrenar el clasificador RGB con SGD + Backpropagation:
+
+```bash
+python -m nn.train --epochs 80 --learning-rate 0.05 --batch-size 32
+```
+
+Entradas/salidas:
+
+- Dataset por defecto: `assets/final_data_colors.csv`
+- Pesos exportados: `outputs/color_mlp_weights.npz`
+- Etiquetas de clase: `outputs/color_mlp_labels.txt`
+- Reporte (incluye accuracy y mapeo etiqueta->costo): `outputs/task2_1_report.txt`
