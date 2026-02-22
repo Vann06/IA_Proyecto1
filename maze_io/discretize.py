@@ -28,6 +28,7 @@ def discretize_image(
 	image: np.ndarray,
 	tile_size: int = 10,
 	tolerance: float = 45.0,
+	is_complex: bool = False,
 ) -> GridRepresentation:
 	# Convertir la imagen RGB a un grid discreto de celdas (libre, pared, inicio, objetivo)
 	if image.ndim != 3 or image.shape[2] != 3:
@@ -62,7 +63,15 @@ def discretize_image(
 			tile = image[y0:y1, x0:x1]
 			avg_color = tile.reshape(-1, 3).mean(axis=0)
 
-			cell_type = _classify_color(avg_color, colors, tolerance)
+			if is_complex:
+				cell_type = _classify_color_euclidean(avg_color, colors, tolerance)
+				if cell_type == CellType.FREE and tile_size > 1:
+					min_color = tile.reshape(-1, 3).min(axis=0)
+					if _classify_color_euclidean(min_color, colors, tolerance) == CellType.WALL:
+						cell_type = CellType.WALL
+			else:
+				cell_type = _classify_color(avg_color, colors, tolerance)
+
 			grid[row, col] = cell_type
 
 			if cell_type == CellType.START:
@@ -153,4 +162,22 @@ def _classify_color(
 		return CellType.GOAL
 
 	# Si no es ni muy oscuro ni claramente rojo/verde, lo tratamos como libre
+	return CellType.FREE
+
+
+def _classify_color_euclidean(
+	color: np.ndarray,
+	reference_colors: dict,
+	tolerance: float,
+) -> int:
+	"""Clasifica basandose estrictamente en distancia euclidiana. Especial para laberintos complejos."""
+	distances = {
+		label: np.linalg.norm(color - reference)
+		for label, reference in reference_colors.items()
+	}
+
+	label = min(distances, key=distances.get)
+	if distances[label] <= tolerance:
+		return label
+
 	return CellType.FREE

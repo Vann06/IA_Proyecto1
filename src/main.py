@@ -12,7 +12,6 @@ from core.search import (
     use_obsessive_but_fast_search_dfs
 )
 from maze_io.discretize import discretize_image
-from maze_io.discretize_small import discretize_image as discretize_image_small
 from maze_io.image_loader import load_rgb_image
 from viz.draw import save_discretization_overlay, draw_marker_over_original_image, save_path_on_grid
 
@@ -60,10 +59,11 @@ def _process_entire_request_step_by_step(person_file_url: Path, image_is_complic
         photo_with_its_original_colors = load_rgb_image(person_file_url)
         
         if image_is_complicated_so_caution:
-            brain_map_of_maze = discretize_image_small(
+            brain_map_of_maze = discretize_image(
                 photo_with_its_original_colors,
                 tile_size=1,
                 tolerance=COLOR_CONFIDENCE_DEGREE,
+                is_complex=True,
             )
         else:
             brain_map_of_maze = discretize_image(
