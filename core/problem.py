@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Generic, Iterable, Sequence, Tuple, TypeVar
+from typing import Callable, Generic, Iterable, Optional, Sequence, Tuple, TypeVar
 
 from maze_io.discretize import CellType, GridRepresentation
 
@@ -47,11 +47,12 @@ POSSIBLE_NEIGHBOR_MOVEMENTS: Sequence[Movement] = ((-1, 0), (1, 0), (0, -1), (0,
 class MazeProblem(SearchProblemInterface[Coordinate, Movement]):
     """Translator of a map (image) to the language understood by the algorithms."""
     
-    def __init__(self, maze_representation: GridRepresentation):
+    def __init__(self, maze_representation: GridRepresentation, cost_fn: Optional[Callable[[Coordinate], float]] = None):
         super().__init__(initial_state=maze_representation.start)
         
         self.gridded_map = maze_representation.grid
         self.winning_exit_cells = maze_representation.goals
+        self.cost_fn = cost_fn
         
         if len(self.winning_exit_cells) == 0:
             raise ValueError("It's impossible to play this maze! There is no visible goal or exit door.")
@@ -79,6 +80,8 @@ class MazeProblem(SearchProblemInterface[Coordinate, Movement]):
         return (current_row + row_jump, current_column + column_jump)
 
     def step_cost(self, current_state: Coordinate, action_taken: Movement, next_state: Coordinate) -> float:
+        if self.cost_fn is not None:
+            return self.cost_fn(next_state)
         return 1.0
 
     def remaining_distance_estimation(self, current_state: Coordinate) -> float:
@@ -107,5 +110,5 @@ class MazeProblem(SearchProblemInterface[Coordinate, Movement]):
         
         return is_free_or_white_cell or is_our_home_cell or is_final_relief_cell
 
-def build_problem_from_maze(maze: GridRepresentation) -> MazeProblem:
-    return MazeProblem(maze)
+def build_problem_from_maze(maze: GridRepresentation, cost_fn: Optional[Callable[[Coordinate], float]] = None) -> MazeProblem:
+    return MazeProblem(maze, cost_fn=cost_fn)

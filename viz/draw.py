@@ -112,24 +112,28 @@ def save_path_on_grid(
 	# Imagen pequeña (rows x cols) que luego se escala con interpolation='nearest'
 	vis = np.zeros((rows, cols, 3), dtype=np.uint8)
 
-	# Colores base por tipo de celda
+	# Colores base por tipo de celda (por si acaso no hay color original)
 	base_colors = {
 		CellType.WALL: np.array([0, 0, 0], dtype=np.uint8),       # negro
 		CellType.FREE: np.array([255, 255, 255], dtype=np.uint8), # blanco
-		CellType.START: np.array([255, 0, 0], dtype=np.uint8),    # rojo
+		CellType.START: np.array([0, 255, 0], dtype=np.uint8),    # Start se pintará verde para distinguirlo
 		CellType.GOAL: np.array([0, 255, 0], dtype=np.uint8),     # verde
 	}
 
 	for r in range(rows):
 		for c in range(cols):
 			cell = int(grid_array[r, c])
-			vis[r, c] = base_colors.get(cell, np.array([255, 255, 255], dtype=np.uint8))
+			if hasattr(grid, "color_map") and grid.color_map is not None and cell != CellType.WALL:
+				# Utiliza el color promedio real que vio la red
+				vis[r, c] = grid.color_map[r, c].astype(np.uint8)
+			else:
+				vis[r, c] = base_colors.get(cell, np.array([255, 255, 255], dtype=np.uint8))
 
 	# Pintar el camino encima (salvo inicio y objetivos), si se solicita
 	if draw_path:
 		start = grid.start
 		goal_set = set(grid.goals)
-		path_color = np.array([0, 0, 255], dtype=np.uint8)  # azul
+		path_color = np.array([255, 0, 0], dtype=np.uint8)  # ROJO para resaltar
 
 		for (r, c) in path:
 			if (r, c) == start or (r, c) in goal_set:
@@ -203,7 +207,7 @@ def draw_marker_over_original_image(
         vertical_y_marks.append(vertical_pixel_coordinate)
         horizontal_x_marks.append(horizontal_pixel_coordinate)
 
-    painting_plane.plot(horizontal_x_marks, vertical_y_marks, color='blue', linewidth=3, label='Chosen Route')
+    painting_plane.plot(horizontal_x_marks, vertical_y_marks, color='blue', linewidth=1, label='Chosen Route')
     
     path_is_not_empty = len(horizontal_x_marks) > 0
     if path_is_not_empty:
